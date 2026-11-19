@@ -1,0 +1,23 @@
+# =============================================================
+# render.yaml — NeuroGuard 3D en Render (plan gratuito)
+# -------------------------------------------------------------
+# Render lee este archivo ("Blueprint") y crea el servidor solo:
+#   - instala las librerías de requirements-servidor.txt,
+#   - arranca la app con gunicorn en el puerto que Render asigna ($PORT).
+# El plan gratis da 512 MB de RAM. NeuroGuard usa unos 330 MB en reposo y
+# unos 360 MB mientras el laboratorio entrena, así que alcanza, pero justo.
+# =============================================================
+services:
+  - type: web
+    name: neuroguard-3d
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-servidor.txt
+    # 1 proceso (el laboratorio guarda su estado en memoria) con 4 hilos.
+    # timeout alto porque el plan gratis tiene poca CPU y TensorFlow tarda en cargar.
+    startCommand: gunicorn --workers 1 --threads 4 --timeout 300 --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5  # Misma versión de Python del proyecto.
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "2"  # Menos mensajes de TensorFlow en los registros.

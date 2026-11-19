@@ -1,0 +1,13 @@
+# Librerías para el SERVIDOR en internet (Linux, Python 3.13).
+# Son las mismas versiones con las que se entrenó el modelo en el computador,
+# para que el modelo (.keras) y el normalizador (.pkl) carguen igual.
+# - tensorflow-cpu: igual que tensorflow pero sin soporte de tarjeta gráfica
+#   (pesa menos y los servidores gratuitos no tienen GPU).
+# - gunicorn: servidor web para producción.
+tensorflow-cpu==2.21.0
+keras==3.15.1
+numpy==2.5.4
+scikit-learn==1.9.1
+joblib==1.6.0
+Flask==3.1.3
+gunicorn==23.0.0

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Arquitectura</title>
+<style>
+  html,body{margin:0;background:#08070d}
+  svg{display:block;font-family:"Segoe UI",system-ui,sans-serif}
+  .mono{font-family:Consolas,"Cascadia Code",monospace}
+</style></head>
+<body>
+<svg id="s" width="1600" height="1120" viewBox="0 0 1600 1120" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const s = document.getElementById("s");
+const el = (tag, at, txt) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); if (txt != null) e.textContent = txt; s.appendChild(e); return e; };
+const texto = (x, y, t, at = {}) => el("text", { x, y, fill: "#ecebf5", "font-size": 18, ...at }, t);
+
+// Fondo
+el("rect", { x: 0, y: 0, width: 1600, height: 1120, fill: "#0b0a12" });
+
+// Título
+texto(800, 52, "Red neuronal 2-8-4-1: ¿cuáles son las 3 capas?", { "text-anchor": "middle", "font-size": 34, "font-weight": 700 });
+texto(800, 86, "La ENTRADA no cuenta como capa (no calcula nada): las 3 capas son OCULTA 1 + OCULTA 2 + SALIDA", { "text-anchor": "middle", "font-size": 18, fill: "#b4b1c8" });
+
+// Colores de cada parte
+const AZUL = "#4f8df7", VERDE = "#34c27a", ROJO = "#e8455f", VIOLETA = "#a78bfa";
+
+// Cerebro: marco violeta que encierra las 3 capas
+el("rect", { x: 500, y: 128, width: 950, height: 700, rx: 28, fill: "rgba(167,139,250,.06)", stroke: VIOLETA, "stroke-width": 3, "stroke-dasharray": "10 8" });
+el("rect", { x: 700, y: 110, width: 550, height: 40, rx: 20, fill: "#1d1730", stroke: VIOLETA, "stroke-width": 2 });
+texto(975, 137, "EL CEREBRO = las 3 capas (65 pesos y sesgos)", { "text-anchor": "middle", "font-size": 20, "font-weight": 700, fill: "#ddd5ff" });
+
+// Columnas de neuronas. Activaciones reales del caso docente (8 intentos, 600 MB).
+const cy = 490;
+const capas = [
+  { x: 290, n: 2, sep: 170, color: AZUL, act: [1, 1], nombres: ["x₁ intentos", "x₂ tráfico"] },
+  { x: 690, n: 8, sep: 56, color: VERDE, act: [0, 0, 1.159, 0, 0.777, 0.71, 0, 0.899] },
+  { x: 1020, n: 4, sep: 100, color: VERDE, act: [0, 2.524, 0, 2.359] },
+  { x: 1330, n: 1, sep: 0, color: ROJO, act: [1] },
+];
+capas.forEach((c) => (c.ys = Array.from({ length: c.n }, (_, i) => cy + (i - (c.n - 1) / 2) * c.sep)));
+
+// Cajas de cada capa
+const cajas = [
+  { c: capas[0], w: 230, titulo: "ENTRADA", sub: "2 valores · no es capa", num: null },
+  { c: capas[1], w: 190, titulo: "CAPA 1 · OCULTA", sub: "8 neuronas · ReLU", num: 1 },
+  { c: capas[2], w: 190, titulo: "CAPA 2 · OCULTA", sub: "4 neuronas · ReLU", num: 2 },
+  { c: capas[3], w: 190, titulo: "CAPA 3 · SALIDA", sub: "1 neurona · sigmoide", num: 3 },
+];
+for (const k of cajas) {
+  const x = k.c.x - k.w / 2;
+  el("rect", { x, y: 185, width: k.w, height: 580, rx: 20, fill: "rgba(255,255,255,.025)", stroke: k.c.color, "stroke-width": 2, "stroke-opacity": .7 });
+  texto(k.c.x, 222, k.titulo, { "text-anchor": "middle", "font-size": 19, "font-weight": 700, fill: k.c.color });
+  texto(k.c.x, 247, k.sub, { "text-anchor": "middle", "font-size": 15, fill: "#b4b1c8" });
+  if (k.num) {
+    el("circle", { cx: k.c.x + k.w / 2 - 8, cy: 185, r: 24, fill: k.c.color });
+    texto(k.c.x + k.w / 2 - 8, 194, String(k.num), { "text-anchor": "middle", "font-size": 26, "font-weight": 800, fill: "#0b0a12" });
+  }
+}
+
+// Conexiones (pesos): más visibles si la neurona de origen está encendida
+for (let l = 0; l < capas.length - 1; l++) {
+  const a = capas[l], b = capas[l + 1];
+  a.ys.forEach((ya, i) => b.ys.forEach((yb) => {
+    const on = a.act[i] > 0;
+    el("line", { x1: a.x, y1: ya, x2: b.x, y2: yb, stroke: on ? "#9d8cf0" : "#3a3550", "stroke-width": on ? 1.6 : 1, "stroke-opacity": on ? .55 : .35 });
+  }));
+}
+
+// Neuronas
+capas.forEach((c, l) => c.ys.forEach((y, i) => {
+  const on = c.act[i] > 0;
+  if (on) el("circle", { cx: c.x, cy: y, r: l === 3 ? 38 : 26, fill: c.color, opacity: .18 });
+  el("circle", { cx: c.x, cy: y, r: l === 3 ? 26 : 19, fill: on ? c.color : "#2b2740", stroke: on ? "#fff" : "#4a4466", "stroke-width": 2 });
+  if (c.nombres) texto(c.x - 36, y + 6, c.nombres[i], { "text-anchor": "end", "font-size": 17, fill: "#dfe8ff" });
+}));
+
+// Salida -> probabilidad -> clasificación
+el("line", { x1: 1362, y1: cy, x2: 1468, y2: cy, stroke: "#fff", "stroke-width": 2.5, "marker-end": "url(#flecha)" });
+const defs = el("defs", {});
+const m = document.createElementNS(NS, "marker");
+for (const [k, v] of Object.entries({ id: "flecha", markerWidth: 10, markerHeight: 10, refX: 8, refY: 5, orient: "auto" })) m.setAttribute(k, v);
+const mp = document.createElementNS(NS, "path"); mp.setAttribute("d", "M0,0 L10,5 L0,10 z"); mp.setAttribute("fill", "#fff"); m.appendChild(mp); defs.appendChild(m);
+texto(1530, cy - 14, "p = 1.33 %", { "text-anchor": "middle", "font-size": 20, "font-weight": 700, class: "mono" });
+el("rect", { x: 1475, y: cy + 2, width: 112, height: 34, rx: 17, fill: "rgba(14,165,196,.18)", stroke: "#0ea5c4" });
+texto(1531, cy + 25, "NORMAL", { "text-anchor": "middle", "font-size": 16, "font-weight": 700, fill: "#7fdcef" });
+texto(1531, cy + 62, "p < 0.5", { "text-anchor": "middle", "font-size": 15, fill: "#b4b1c8", class: "mono" });
+
+// Nota del ejemplo
+texto(290, 745, "Ejemplo real: 8 intentos, 600 MB", { "text-anchor": "middle", "font-size": 13, fill: "#77748e" });
+texto(975, 805, "Neuronas grises = apagadas (ReLU dio 0) · las de color sí se activaron", { "text-anchor": "middle", "font-size": 15, fill: "#77748e" });
+
+// Tarjetas inferiores con la operación y la línea de código
+const tarjetas = [
+  { x: 270, color: AZUL, l1: "Recibe x₁ y x₂", l2: "normalizados", l3: "keras.Input(shape=(2,))", l4: "línea 273" },
+  { x: 690, color: VERDE, l1: "z = Σ(w·x) + b", l2: "a = ReLU(z) = max(0, z)", l3: "Dense(8, \"relu\")", l4: "línea 278 · 24 parámetros" },
+  { x: 1020, color: VERDE, l1: "z = Σ(w·h) + b", l2: "a = ReLU(z) = max(0, z)", l3: "Dense(4, \"relu\")", l4: "línea 283 · 36 parámetros" },
+  { x: 1330, color: ROJO, l1: "z = Σ(w·h) + b", l2: "p = 1 / (1 + e⁻ᶻ)", l3: "Dense(1, \"sigmoid\")", l4: "línea 288 · 5 parámetros" },
+];
+for (const t of tarjetas) {
+  el("rect", { x: t.x - 150, y: 850, width: 300, height: 130, rx: 16, fill: "#14111f", stroke: t.color, "stroke-width": 2 });
+  texto(t.x, 882, t.l1, { "text-anchor": "middle", "font-size": 18, "font-weight": 700, class: "mono" });
+  texto(t.x, 910, t.l2, { "text-anchor": "middle", "font-size": 16, fill: "#c9c4e6", class: "mono" });
+  texto(t.x, 942, t.l3, { "text-anchor": "middle", "font-size": 16, fill: t.color, class: "mono" });
+  texto(t.x, 966, t.l4, { "text-anchor": "middle", "font-size": 14, fill: "#8f8aa8" });
+}
+
+// Franja inferior: entrenamiento y operación
+el("rect", { x: 40, y: 1004, width: 755, height: 90, rx: 16, fill: "rgba(232,69,95,.08)", stroke: "#e8455f" });
+texto(62, 1038, "ENTRENAMIENTO · modelo.fit()  (línea 347)", { "font-size": 19, "font-weight": 700, fill: "#ff8da0" });
+texto(62, 1070, "100 épocas: ajusta los 65 pesos (las líneas) y sesgos para que la red aprenda.", { "font-size": 16, fill: "#d6d2ea" });
+el("rect", { x: 805, y: 1004, width: 755, height: 90, rx: 16, fill: "rgba(167,139,250,.08)", stroke: VIOLETA });
+texto(827, 1038, "LA OPERACIÓN DE CADA NEURONA  (línea 499)", { "font-size": 19, "font-weight": 700, fill: "#ddd5ff" });
+texto(827, 1070, "z = entradas · W + b   →   a = ReLU(z)  o  sigmoide(z)", { "font-size": 17, fill: "#d6d2ea", class: "mono" });
+</script>
+</body></html>

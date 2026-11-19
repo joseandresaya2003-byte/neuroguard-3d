@@ -1,0 +1,8 @@
+# Archivos que NO se copian al servidor (no hacen falta para que la página funcione).
+.venv/
+__pycache__/
+*.pyc
+.vscode/
+.git/
+iniciar.bat
+subir_a_huggingface.bat

@@ -1,0 +1,7 @@
+# Archivos binarios: Git no debe tocar sus bytes (modelo, normalizador, MediaPipe, imágenes).
+*.wasm binary
+*.task binary
+*.keras binary
+*.npz binary
+*.pkl binary
+*.png binary

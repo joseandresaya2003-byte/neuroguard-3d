@@ -1,0 +1,5 @@
+# Archivos que NO se suben a GitHub (se recrean en cada computador o servidor).
+.venv/
+__pycache__/
+*.pyc
+.vscode/

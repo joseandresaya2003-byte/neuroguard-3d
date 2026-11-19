@@ -1,0 +1,23 @@
+TALLER DE RED NEURONAL DE TRES CAPAS
+
+Objetivo
+Completar, entrenar y probar una red neuronal que clasifica conexiones
+informáticas como normales o sospechosas.
+
+Instalación
+1. Abra esta carpeta en Visual Studio Code.
+2. Abra la terminal.
+3. Ejecute:
+
+   python -m pip install -r requirements.txt
+
+4. Abra red_neuronal_estudiantes.py.
+5. Busque desde TODO 1 hasta TODO 12 y complete cada actividad.
+6. Ejecute:
+
+   python red_neuronal_estudiantes.py
+
+Importante
+El programa se detendrá en el primer TODO pendiente. Complete las actividades
+en orden. Los datos son simulados y su uso es exclusivamente académico.
+

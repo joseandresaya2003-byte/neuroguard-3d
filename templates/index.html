@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<!--
+  NeuroGuard 3D - Interfaz de la red neuronal 2-8-4-1
+  Estructura de la página:
+    1. Encabezado      -> asignatura, título del proyecto y exactitud real del modelo.
+    2. Panel izquierdo -> campos de entrada, validación, casos rápidos y botón Analizar.
+    3. Centro          -> red neuronal en 3D (Three.js) que se ilumina con los valores reales.
+    4. Panel derecho   -> probabilidad, umbral, clasificación y explicación.
+    5. Pestañas        -> mapa de decisión, entrenamiento, métricas, cálculo y historial.
+    6. Pie             -> aviso de demostración académica.
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeuroGuard 3D · Red neuronal 2-8-4-1</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%230b1222'/%3E%3Ccircle cx='10' cy='13' r='4' fill='%2322d3ee'/%3E%3Ccircle cx='10' cy='27' r='4' fill='%2322d3ee'/%3E%3Ccircle cx='30' cy='20' r='5' fill='%23e8455f'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+  <!-- "importmap" le dice al navegador dónde está la librería Three.js (copia local, funciona sin internet). -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "{{ url_for('static', filename='vendor/three.module.min.js') }}",
+        "three/addons/OrbitControls.js": "{{ url_for('static', filename='vendor/OrbitControls.js') }}"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="rejilla-fondo" aria-hidden="true"></div>
+  <!-- Pantalla de carga mientras se piden los datos del modelo al servidor -->
+  <div id="cargando" class="cargando">
+    <div class="cargando-anillo"></div>
+    <p>Cargando la red neuronal entrenada…</p>
+  </div>
+
+  <!-- ===================== 1. ENCABEZADO ===================== -->
+  <header class="encabezado">
+    <div class="marca">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 40 40"><circle cx="8" cy="12" r="3"/><circle cx="8" cy="28" r="3"/><circle cx="20" cy="8" r="3"/><circle cx="20" cy="20" r="3"/><circle cx="20" cy="32" r="3"/><circle cx="32" cy="20" r="4"/><path d="M8 12L20 8M8 12L20 20M8 12L20 32M8 28L20 8M8 28L20 20M8 28L20 32M20 8L32 20M20 20L32 20M20 32L32 20"/></svg>
+      </div>
+      <div>
+        <p class="asignatura">Inteligencia Artificial · Ingeniería Informática · UNIPAZ</p>
+        <h1><span class="gradiente">NeuroGuard 3D</span> <span>— Clasificador de conexiones con una red neuronal 2-8-4-1</span></h1>
+      </div>
+    </div>
+    <div class="chips-modelo">
+      <div class="chip-dato"><span>Exactitud</span><b id="chipExactitud">–</b></div>
+      <div class="chip-dato"><span>Parámetros</span><b id="chipParametros">–</b></div>
+      <div class="chip-dato"><span>Docente</span><b>Ing. Esp. Jhonis Ríos M.</b></div>
+      <!-- Deja la plataforma como recién abierta: historial, umbral y laboratorio -->
+      <button type="button" id="botonReiniciar" class="boton-reiniciar" title="Borrar historial, experimentos y volver al umbral 0.5">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg>
+        Reiniciar todo
+      </button>
+    </div>
+  </header>
+
+  <main class="principal">
+    <!-- ===================== 2. PANEL DE ENTRADAS ===================== -->
+    <section class="panel panel-entradas" aria-labelledby="tituloEntradas">
+      <h2 id="tituloEntradas"><span class="num">01</span> Datos de la conexión</h2>
+
+      <form id="formulario" novalidate>
+        <!-- Entrada x1 -->
+        <div class="campo" id="campoIntentos">
+          <label for="intentos">
+            <span class="var">x₁</span> Intentos fallidos de inicio de sesión
+          </label>
+          <div class="fila-entrada">
+            <button type="button" class="paso" data-objetivo="intentos" data-delta="-1" aria-label="Restar un intento">−</button>
+            <input id="intentos" name="intentos" type="number" inputmode="numeric" min="0" max="100" step="1" value="2" required>
+            <button type="button" class="paso" data-objetivo="intentos" data-delta="1" aria-label="Sumar un intento">+</button>
+          </div>
+          <input id="rangoIntentos" class="deslizador" type="range" min="0" max="20" step="1" value="2" aria-label="Deslizador de intentos fallidos">
+          <p class="ayuda">Rango de entrenamiento: 0 a 20 · entero</p>
+          <p class="error" id="errorIntentos" role="alert"></p>
+        </div>
+
+        <!-- Entrada x2 -->
+        <div class="campo" id="campoTrafico">
+          <label for="trafico">
+            <span class="var">x₂</span> Tráfico enviado (MB)
+          </label>
+          <div class="fila-entrada">
+            <button type="button" class="paso" data-objetivo="trafico" data-delta="-50" aria-label="Restar 50 MB">−</button>
+            <input id="trafico" name="trafico" type="number" inputmode="decimal" min="0" max="10000" step="0.01" value="100" required>
+            <button type="button" class="paso" data-objetivo="trafico" data-delta="50" aria-label="Sumar 50 MB">+</button>
+          </div>
+          <input id="rangoTrafico" class="deslizador" type="range" min="0" max="2000" step="10" value="100" aria-label="Deslizador de tráfico enviado">
+          <p class="ayuda">Rango de entrenamiento: 0 a 2000 MB</p>
+          <p class="error" id="errorTrafico" role="alert"></p>
+        </div>
+
+        <label class="interruptor">
+          <input type="checkbox" id="modoVivo">
+          <span class="pista"></span>
+          Analizar en vivo al mover los deslizadores
+        </label>
+
+        <button type="submit" class="boton-analizar" id="botonAnalizar">
+          <span>Analizar conexión</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+
+      <h3 class="subtitulo">Casos de prueba (Fase 6)</h3>
+      <div class="casos">
+        <button class="caso" data-intentos="2" data-trafico="100"><b>Bajo</b><span>2 intentos · 100 MB</span></button>
+        <button class="caso" data-intentos="8" data-trafico="600"><b>Intermedio</b><span>8 intentos · 600 MB</span></button>
+        <button class="caso" data-intentos="18" data-trafico="1800"><b>Alto</b><span>18 intentos · 1800 MB</span></button>
+        <button class="caso" id="casoAleatorio"><b>Aleatorio</b><span>valores al azar</span></button>
+      </div>
+    </section>
+
+    <!-- ===================== 3. RED NEURONAL 3D ===================== -->
+    <section class="panel panel-3d" aria-label="Visualización 3D de la red neuronal">
+      <div class="barra-3d">
+        <h2><span class="num">02</span> Recorrido por la red 2-8-4-1</h2>
+        <div class="controles-3d">
+          <button id="botonRotar" class="mini activo" title="Girar automáticamente">⟳ Auto-rotar</button>
+          <button id="botonEtiquetas" class="mini activo" title="Mostrar valores sobre las neuronas">Valores</button>
+          <button id="botonVista" class="mini" title="Volver a la vista inicial (o salir de una neurona)">Centrar</button>
+          <!-- ✋ Activa la cámara web para manejar la red con las manos (MediaPipe, funciona sin internet) -->
+          <button id="botonManos" class="mini" title="Controlar la red con las manos usando la cámara web (abre pantalla completa)">✋ Manos</button>
+          <button id="botonCompleta" class="mini" title="Ver la red en pantalla completa">⛶ Completa</button>
+        </div>
+      </div>
+      <div id="escena3d" class="escena3d">
+        <div id="tooltip3d" class="tooltip3d" hidden></div>
+        <!-- Aviso que aparece cuando la cámara está "dentro" de una neurona -->
+        <div id="hud3d" class="hud3d" hidden></div>
+        <!-- ⛶ Barra del MODO PANTALLA COMPLETA (solo se ve en ese modo) -->
+        <div class="barra-inmersiva">
+          <button type="button" id="botonRegresar" class="boton-regresar">← Regresar</button>
+          <button type="button" id="botonManosInmersivo" class="mini">✋ Manos</button>
+          <button type="button" id="botonCentrarInmersivo" class="mini">Centrar</button>
+        </div>
+        <!-- Copia del cálculo de la neurona seleccionada, visible en pantalla completa -->
+        <div id="detalleInmersivo" class="detalle-inmersivo" hidden></div>
+        <div class="leyenda-3d">
+          <span><i class="linea positiva"></i> peso positivo</span>
+          <span><i class="linea negativa"></i> peso negativo</span>
+          <span>grosor/brillo = |w|</span>
+          <span>Arrastre o 1 dedo: girar · rueda o pellizco: zoom · clic: ver · doble clic / doble toque: entrar</span>
+        </div>
+      </div>
+
+      <!-- Detalle matemático de la neurona seleccionada -->
+      <div id="detalleNeurona" class="detalle-neurona">
+        <p class="placeholder">Haga clic en una neurona de la red para ver su cálculo:
+          <code>z = Σ(wᵢ·xᵢ) + b</code> y su activación.</p>
+      </div>
+    </section>
+
+    <!-- ===================== 4. RESULTADO ===================== -->
+    <section class="panel panel-resultado" aria-labelledby="tituloResultado" aria-live="polite">
+      <h2 id="tituloResultado"><span class="num">03</span> Resultado del modelo</h2>
+
+      <!-- Medidor de probabilidad (SVG) -->
+      <div class="medidor">
+        <svg viewBox="0 0 220 130" id="svgMedidor" role="img" aria-label="Medidor de probabilidad">
+          <defs>
+            <linearGradient id="gradArco" x1="0" x2="1">
+              <stop offset="0" stop-color="#0ea5c4"/>
+              <stop offset="0.5" stop-color="#3e3a52" id="paradaUmbral"/>
+              <stop offset="1" stop-color="#e8455f"/>
+            </linearGradient>
+          </defs>
+          <path d="M20 115 A90 90 0 0 1 200 115" class="arco-fondo"/>
+          <path d="M20 115 A90 90 0 0 1 200 115" class="arco-valor" id="arcoValor" stroke="url(#gradArco)"/>
+          <!-- Marca del umbral: app.js la mueve sobre el arco cuando cambia -->
+          <line x1="110" y1="18" x2="110" y2="34" class="marca-umbral" id="marcaUmbral"/>
+          <text x="110" y="12" class="texto-umbral" id="etiquetaUmbral">umbral 0.50</text>
+          <g id="aguja"><line x1="110" y1="115" x2="110" y2="38" class="aguja"/><circle cx="110" cy="115" r="6" class="eje"/></g>
+          <text x="20" y="128" class="extremo">0%</text>
+          <text x="200" y="128" class="extremo" text-anchor="end">100%</text>
+        </svg>
+        <div class="valor-probabilidad"><span id="textoProbabilidad">––</span><small>probabilidad de ser sospechosa</small></div>
+      </div>
+
+      <!-- Umbral de decisión modificable: actualiza todas las vistas a la vez -->
+      <div class="control-umbral" id="controlUmbral">
+        <div class="cabecera-umbral">
+          <label for="rangoUmbral">Umbral de decisión</label>
+          <span class="insignia-umbral" id="insigniaUmbral">oficial</span>
+          <b id="textoUmbral">0.50</b>
+        </div>
+        <input type="range" class="deslizador" id="rangoUmbral" min="0.05" max="0.95" step="0.01" value="0.5" aria-describedby="textoRegla">
+        <div class="escala-umbral">
+          <span>← más alertas</span>
+          <button type="button" id="umbralOficial" class="mini">Volver a 0.5</button>
+          <span>menos alertas →</span>
+        </div>
+        <p class="regla" id="textoRegla">Regla: p ≥ 0.50 → sospechosa</p>
+        <div class="resumen-umbral" id="resumenUmbral" aria-live="polite"></div>
+      </div>
+
+      <div id="veredicto" class="veredicto vacio">
+        <span class="icono" aria-hidden="true">?</span>
+        <div><small>Clasificación</small><b id="textoClase">Sin analizar</b></div>
+      </div>
+
+      <!-- Descarga una imagen PNG con el diagrama explicado de ESTE resultado -->
+      <button type="button" id="botonDescargar" class="boton-descargar" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        Descargar imagen explicada
+      </button>
+
+      <!-- Curva sigmoide en vivo: cómo la neurona de salida convierte z en probabilidad -->
+      <div class="tarjeta-sigmoide">
+        <div class="cab-sigmoide">
+          <h3>Neurona de salida · sigmoide</h3>
+          <code>σ(z) = 1 / (1 + e<sup>−z</sup>)</code>
+        </div>
+        <div class="lienzo-envoltura">
+          <canvas id="lienzoSigmoide" width="330" height="190" aria-label="Curva de la función sigmoide con la conexión actual"></canvas>
+          <div id="tooltipSigmoide" class="tooltip-grafica" hidden></div>
+        </div>
+        <p id="textoSigmoide" class="texto-sigmoide">Analice una conexión para ver su punto sobre la curva.</p>
+      </div>
+
+      <div class="explicacion">
+        <h3>Explicación</h3>
+        <p id="textoExplicacion">Escriba los datos de una conexión y pulse <b>Analizar conexión</b>. La red calculará la probabilidad en tiempo real.</p>
+        <div id="barrasEfecto" class="barras-efecto" hidden>
+          <p class="mini-titulo">Influencia de cada entrada (vs. conexión promedio)</p>
+          <div class="efecto"><span>Intentos</span><div class="pista-efecto"><i id="efectoIntentos"></i></div><b id="valorEfectoIntentos"></b></div>
+          <div class="efecto"><span>Tráfico</span><div class="pista-efecto"><i id="efectoTrafico"></i></div><b id="valorEfectoTrafico"></b></div>
+        </div>
+        <ul id="listaAdvertencias" class="advertencias"></ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== 5. PESTAÑAS DE ANÁLISIS ===================== -->
+  <section class="panel pestanas" aria-label="Análisis del modelo">
+    <div class="lista-pestanas" role="tablist">
+      <button role="tab" class="pestana activa" data-panel="tabMapa">Mapa de decisión</button>
+      <button role="tab" class="pestana" data-panel="tabLaboratorio">Laboratorio <span class="nuevo">en vivo</span></button>
+      <button role="tab" class="pestana" data-panel="tabEntrenamiento">Entrenamiento</button>
+      <button role="tab" class="pestana" data-panel="tabMetricas">Métricas</button>
+      <button role="tab" class="pestana" data-panel="tabCalculo">Cálculo paso a paso</button>
+      <button role="tab" class="pestana" data-panel="tabHistorial">Historial <span id="contadorHistorial" class="contador">0</span></button>
+    </div>
+
+    <!-- Mapa de decisión: vista 2D (mapa de calor) + vista 3D (superficie) -->
+    <div class="contenido-pestana activa" id="tabMapa" role="tabpanel">
+      <p class="intro-pestana">Así "ve" el mundo la red entrenada: para <b>cada combinación</b> de intentos y tráfico calcula una probabilidad. La línea blanca es la <b>frontera de decisión p = <span class="valor-umbral">0.50</span></b> (el umbral elegido en el panel Resultado). <b>Haga clic o arrastre</b> sobre el mapa (o haga clic sobre la superficie 3D) para analizar esa conexión.</p>
+      <div class="vistas-mapa">
+        <figure class="tarjeta-vista">
+          <figcaption><span class="punto-vivo"></span> Mapa de calor 2D</figcaption>
+          <div class="lienzo-envoltura">
+            <canvas id="lienzoMapa" width="640" height="420" aria-label="Mapa de decisión de la red"></canvas>
+            <div id="tooltipMapa" class="tooltip-grafica" hidden></div>
+          </div>
+        </figure>
+        <figure class="tarjeta-vista">
+          <figcaption><span class="punto-vivo"></span> Superficie 3D de probabilidad <small>arrastre para girar</small></figcaption>
+          <div id="superficieMapa" class="superficie3d" aria-label="Superficie 3D de probabilidad"></div>
+        </figure>
+      </div>
+      <div class="barra-mapa">
+        <div class="escala-color" aria-label="Escala de color">
+          <span>normal</span><i></i><span>sospechosa</span>
+          <div class="marcas"><b>0%</b><b>umbral</b><b>100%</b></div>
+        </div>
+        <div class="leyenda fila">
+          <span><i class="simbolo circulo"></i> real normal</span>
+          <span><i class="simbolo triangulo"></i> real sospechosa</span>
+          <span><i class="simbolo x"></i> error de la red</span>
+          <span><i class="linea-frontera"></i> frontera p = <span class="valor-umbral">0.50</span></span>
+          <span><i class="linea-nivel"></i> p = 0.25 / 0.75</span>
+        </div>
+        <div class="interruptores">
+          <label class="interruptor"><input type="checkbox" id="verPuntos" checked><span class="pista"></span>Datos de prueba</label>
+          <label class="interruptor"><input type="checkbox" id="verNiveles" checked><span class="pista"></span>Curvas de nivel</label>
+          <label class="interruptor"><input type="checkbox" id="girarSuperficie" checked><span class="pista"></span>Girar 3D</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Laboratorio: entrenar redes experimentales en vivo -->
+    <div class="contenido-pestana" id="tabLaboratorio" role="tabpanel">
+      <p class="intro-pestana">Modifique la arquitectura y observe cómo cambian los resultados. La red experimental se entrena <b>en vivo</b> con los mismos datos del modelo oficial, que no se modifica. La capa de salida siempre es <b>sigmoide</b>, porque debe entregar una probabilidad.</p>
+
+      <div class="controles-lab">
+        <div class="grupo-lab grupo-epoca">
+          <span class="rotulo">Época</span>
+          <div class="contador-epoca"><b id="labEpoca">000</b><small>/ <span id="labEpocaTotal">100</span></small></div>
+          <div class="progreso-lab"><i id="labProgreso"></i></div>
+        </div>
+
+        <div class="grupo-lab grupo-activacion">
+          <span class="rotulo">Activación de las capas ocultas</span>
+          <div class="segmentado" role="radiogroup" aria-label="Función de activación">
+            <button type="button" role="radio" class="opcion activa" data-activacion="relu" aria-checked="true">
+              <svg viewBox="0 0 24 20"><path class="eje-mini" d="M1 14H23M12 1V19"/><path d="M2 14H12L22 3"/></svg>ReLU</button>
+            <button type="button" role="radio" class="opcion" data-activacion="tanh" aria-checked="false">
+              <svg viewBox="0 0 24 20"><path class="eje-mini" d="M1 10H23M12 1V19"/><path d="M2 17C9 17 8 3 22 3"/></svg>Tanh</button>
+            <button type="button" role="radio" class="opcion" data-activacion="sigmoid" aria-checked="false">
+              <svg viewBox="0 0 24 20"><path class="eje-mini" d="M1 17H23M12 1V19"/><path d="M2 16C9 16 9 4 22 4"/></svg>Sigmoide</button>
+            <button type="button" role="radio" class="opcion" data-activacion="linear" aria-checked="false">
+              <svg viewBox="0 0 24 20"><path class="eje-mini" d="M1 10H23M12 1V19"/><path d="M2 18L22 2"/></svg>Lineal</button>
+          </div>
+        </div>
+
+        <div class="grupo-lab">
+          <label class="rotulo" for="labTasa">Tasa de aprendizaje</label>
+          <select id="labTasa" class="selector">
+            <option value="0.0001">0.0001</option>
+            <option value="0.001" selected>0.001</option>
+            <option value="0.003">0.003</option>
+            <option value="0.01">0.01</option>
+            <option value="0.03">0.03</option>
+            <option value="0.1">0.1</option>
+            <option value="0.3">0.3</option>
+          </select>
+        </div>
+
+        <div class="grupo-lab">
+          <span class="rotulo">Neuronas oculta 1</span>
+          <div class="stepper"><button type="button" data-lab="neuronas1" data-delta="-1" aria-label="Menos neuronas en la capa 1">−</button><b id="labNeuronas1">8</b><button type="button" data-lab="neuronas1" data-delta="1" aria-label="Más neuronas en la capa 1">+</button></div>
+        </div>
+        <div class="grupo-lab">
+          <span class="rotulo">Neuronas oculta 2</span>
+          <div class="stepper"><button type="button" data-lab="neuronas2" data-delta="-1" aria-label="Menos neuronas en la capa 2">−</button><b id="labNeuronas2">4</b><button type="button" data-lab="neuronas2" data-delta="1" aria-label="Más neuronas en la capa 2">+</button></div>
+        </div>
+
+        <div class="grupo-lab">
+          <label class="rotulo" for="labEpocas">Épocas</label>
+          <select id="labEpocas" class="selector">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="150">150</option>
+            <option value="200">200</option>
+          </select>
+        </div>
+
+        <button type="button" id="labBoton" class="boton-entrenar" aria-label="Entrenar red experimental">
+          <svg viewBox="0 0 24 24" class="icono-play"><path d="M8 5v14l11-7z"/></svg>
+          <svg viewBox="0 0 24 24" class="icono-stop"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          <span>Entrenar</span>
+        </button>
+      </div>
+
+      <p class="descripcion-activacion" id="labDescripcion"></p>
+
+      <div class="lab-cuerpo">
+        <figure class="tarjeta-vista">
+          <figcaption><span class="punto-vivo" id="labVivo1"></span> Frontera aprendida <small id="labArquitectura">2-8-4-1 · ReLU</small></figcaption>
+          <div class="lienzo-envoltura">
+            <canvas id="lienzoLab" width="560" height="380" aria-label="Mapa de decisión de la red experimental"></canvas>
+            <div id="tooltipLab" class="tooltip-grafica" hidden></div>
+            <div class="lab-vacio" id="labVacio">Pulse <b>Entrenar</b> para ver aprender a la red</div>
+          </div>
+        </figure>
+        <figure class="tarjeta-vista">
+          <figcaption><span class="punto-vivo" id="labVivo2"></span> Superficie en vivo</figcaption>
+          <div id="superficieLab" class="superficie3d"></div>
+        </figure>
+        <div class="lab-lateral">
+          <figure class="tarjeta-vista">
+            <figcaption>Pérdida por época</figcaption>
+            <div class="lienzo-envoltura"><canvas id="lienzoLabPerdida" width="420" height="200"></canvas><div class="tooltip-grafica" hidden></div></div>
+            <div class="leyenda fila pequena"><span><i class="linea-serie entrenamiento"></i> entrenamiento</span><span><i class="linea-serie validacion"></i> validación</span></div>
+          </figure>
+          <div class="resultado-lab" id="labResultado">
+            <div><span>Exactitud</span><b id="labExactitud">–</b></div>
+            <div><span>Precisión</span><b id="labPrecision">–</b></div>
+            <div><span>Recall</span><b id="labRecall">–</b></div>
+            <div><span>Pérdida</span><b id="labPerdida">–</b></div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="titulo-tabla">Comparación de experimentos <small>(datos de prueba · umbral <span class="valor-umbral">0.50</span>)</small></h3>
+      <div class="tabla-envoltura">
+        <table class="tabla">
+          <thead><tr><th>Modelo</th><th>Activación</th><th>Arquitectura</th><th>Tasa</th><th>Épocas</th><th>Pérdida</th><th>Exactitud</th><th>Precisión</th><th>Recall</th></tr></thead>
+          <tbody id="cuerpoExperimentos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Curvas de entrenamiento -->
+    <div class="contenido-pestana" id="tabEntrenamiento" role="tabpanel">
+      <div class="graficas-dobles">
+        <figure>
+          <figcaption>Pérdida por época <small>(debe bajar)</small></figcaption>
+          <div class="lienzo-envoltura"><canvas id="lienzoPerdida" width="560" height="280"></canvas><div class="tooltip-grafica" hidden></div></div>
+        </figure>
+        <figure>
+          <figcaption>Exactitud por época <small>(debe subir)</small></figcaption>
+          <div class="lienzo-envoltura"><canvas id="lienzoExactitud" width="560" height="280"></canvas><div class="tooltip-grafica" hidden></div></div>
+        </figure>
+      </div>
+      <div class="pie-graficas">
+        <span class="leyenda"><span><i class="linea-serie entrenamiento"></i> entrenamiento</span><span><i class="linea-serie validacion"></i> validación</span></span>
+        <button id="botonRepetir" class="mini">▶ Reproducir entrenamiento</button>
+        <p id="resumenEntrenamiento" class="resumen"></p>
+      </div>
+    </div>
+
+    <!-- Métricas -->
+    <div class="contenido-pestana" id="tabMetricas" role="tabpanel">
+      <p class="intro-pestana" id="notaMetricas"></p>
+      <div class="metricas">
+        <div class="tarjetas-metricas" id="tarjetasMetricas"></div>
+        <div class="matriz-envoltura">
+          <h3>Matriz de confusión <small>(datos de prueba · umbral <span class="valor-umbral">0.50</span>)</small></h3>
+          <div class="matriz" id="matrizConfusion"></div>
+        </div>
+        <div class="datos-dataset" id="datosDataset"></div>
+      </div>
+    </div>
+
+    <!-- Cálculo paso a paso -->
+    <div class="contenido-pestana" id="tabCalculo" role="tabpanel">
+      <div id="calculoPasos" class="calculo-pasos">
+        <p class="placeholder">Analice una conexión para ver cómo los datos atraviesan cada capa.</p>
+      </div>
+    </div>
+
+    <!-- Historial -->
+    <div class="contenido-pestana" id="tabHistorial" role="tabpanel">
+      <div class="tabla-envoltura">
+        <table class="tabla">
+          <thead><tr><th>#</th><th>Intentos</th><th>Tráfico (MB)</th><th>Probabilidad</th><th>Umbral</th><th>Clasificación</th><th></th></tr></thead>
+          <tbody id="cuerpoHistorial"><tr><td colspan="7" class="placeholder">Aún no hay análisis. Analice una conexión para empezar.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 6. AVISO ACADÉMICO ===================== -->
+  <footer class="aviso">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2L12 3zM12 10v5M12 18v.5"/></svg>
+    <p><b>Demostración académica.</b> Los datos, probabilidades y clasificaciones tienen fines educativos y provienen de datos simulados. El resultado no confirma ni descarta la existencia de un ataque informático real.</p>
+  </footer>
+
+  <!-- Ventana de confirmación del botón "Reiniciar todo" -->
+  <div id="modalReiniciar" class="modal" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="tituloModal">
+      <h3 id="tituloModal">¿Reiniciar la plataforma desde cero?</h3>
+      <p>Se borrará:</p>
+      <ul>
+        <li>El <b>historial</b> de conexiones analizadas.</li>
+        <li>Los <b>experimentos del laboratorio</b> (y se detiene el que esté entrenando).</li>
+        <li>El <b>umbral</b> vuelve al oficial <b>0.5</b> y los datos de entrada a los valores iniciales.</li>
+      </ul>
+      <p class="placeholder">El modelo oficial entrenado no se borra: sigue siendo el mismo.</p>
+      <div class="modal-botones">
+        <button type="button" class="mini" id="cancelarReiniciar">Cancelar</button>
+        <button type="button" class="boton-reiniciar peligro" id="confirmarReiniciar">Sí, reiniciar todo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificaciones emergentes -->
+  <div id="notificacion" class="notificacion" role="status" hidden></div>
+
+  <!-- Lógica de la interfaz (módulos de JavaScript) -->
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
